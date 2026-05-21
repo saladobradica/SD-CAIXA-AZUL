@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Teste A-Frame Mobile</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <script src="js/aframe.min.js"></script>
+
+  <style>
+    canvas.a-canvas {
+      filter: contrast(1.5) saturate(1.1);
+    }
+
+    #mobile-controls {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    .joystick {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      border: 1px solid rgba(255,255,255,0.7);
+      border-radius: 50%;
+      background: rgba(255,255,255,0.08);
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    #leftJoy {
+      left: 30px;
+      bottom: 30px;
+    }
+
+    #rightJoy {
+      right: 30px;
+      bottom: 30px;
+    }
+
+    .stick {
+      position: absolute;
+      width: 52px;
+      height: 52px;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: rgba(255,255,255,0.55);
+      border: 2px solid rgba(255,255,255,0.9);
+    }
+
+    @media (min-width: 900px) {
+      #mobile-controls {
+        display: none;
+      }
+    }
+  </style>
+
+  <script>
+    const joystickState = {
+      left: { x: 0, y: 0 },
+      right: { x: 0, y: 0 }
+    };
+
+    AFRAME.registerComponent('forcar-material-flat', {
+      schema: {
+        alphaTest: { type: 'number', default: 0.5 },
+        opacity: { type: 'number', default: 1 }
+      },
+
+      init: function () {
+        this.el.addEventListener('model-loaded', () => {
+          const obj = this.el.getObject3D('mesh');
+          if (!obj) return;
+
+          obj.traverse((node) => {
+            if (!node.isMesh || !node.material) return;
+
+            const materiais = Array.isArray(node.material) ? node.material : [node.material];
+
+            const novosMateriais = materiais.map((mat) => {
+              const novo = new THREE.MeshBasicMaterial({
+                map: mat.map || null,
+                alphaMap: mat.alphaMap || null,
+                color: mat.color || new THREE.Color(1, 1, 1),
+
+                transparent: true,
+                opacity: this.data.opacity,
+                alphaTest: this.data.alphaTest,
+
+                side: THREE.DoubleSide,
+                depthTest: true,
+                depthWrite: true
+              });
+
+              novo.needsUpdate = true;
+              return novo;
+            });
+
+            node.material = novosMateriais.length === 1 ? novosMateriais[0] : novosMateriais;
+
+            node.castShadow = false;
+            node.receiveShadow = false;
+          });
+        });
+      }
+    });
+
+    AFRAME.registerComponent('mobile-joystick-controls', {
+      schema: {
+        moveSpeed: { default: 40 },
+        lookSpeed: { default: 0.5 },
+        moveAcceleration: { default: 40 }
+      },
+
+      init: function () {
+        this.camera = document.getElementById('camera');
+        this.pitch = 0;
+        this.yaw = this.el.object3D.rotation.y || 0;
+
+        this.currentMoveX = 0;
+        this.currentMoveY = 0;
+
+        this.isMobile = window.matchMedia('(max-width: 899px), (pointer: coarse)').matches;
+
+        window.addEventListener('resize', () => {
+          this.isMobile = window.matchMedia('(max-width: 899px), (pointer: coarse)').matches;
+        });
+      },
+
+      tick: function (time, delta) {
+        if (!this.camera) return;
+
+        /*
+          No desktop, o joystick não interfere.
+          Assim o mouse e o teclado funcionam normalmente.
+        */
+        if (!this.isMobile) return;
+
+        const dt = delta / 1000;
+
+        const left = joystickState.left;
+        const right = joystickState.right;
+
+        // Joystick direito: olhar / girar câmera
+        this.yaw -= right.x * this.data.lookSpeed * dt;
+        this.pitch -= right.y * this.data.lookSpeed * dt;
+
+        // Limite do olhar:
+        // para cima: 30 graus
+        // para baixo: 30 graus
+        const maxLookUp = THREE.MathUtils.degToRad(30);
+        const maxLookDown = THREE.MathUtils.degToRad(30);
+
+        this.pitch = Math.max(-maxLookDown, Math.min(maxLookUp, this.pitch));
+
+        this.el.object3D.rotation.y = this.yaw;
+        this.camera.object3D.rotation.x = this.pitch;
+
+        // Joystick esquerdo: andar com aceleração suave
+        const speed = this.data.moveSpeed * dt;
+        const acceleration = this.data.moveAcceleration;
+
+        this.currentMoveX += (left.x - this.currentMoveX) * acceleration * dt;
+        this.currentMoveY += (left.y - this.currentMoveY) * acceleration * dt;
+
+        if (Math.abs(this.currentMoveX) < 0.01) this.currentMoveX = 0;
+        if (Math.abs(this.currentMoveY) < 0.01) this.currentMoveY = 0;
+
+        this.el.object3D.translateX(this.currentMoveX * speed);
+
+        // Sem sinal negativo porque você corrigiu frente/trás
+        this.el.object3D.translateZ(this.currentMoveY * speed);
+      }
+    });
+  </script>
+</head>
+
+<body>
+  <a-scene
+    background="color: #111"
+    renderer="antialias: true; colorManagement: true"
+    vr-mode-ui="enabled: false">
+
+    <a-assets>
+      <a-asset-item id="caixa" src="models/caixa.glb"></a-asset-item>
+      <a-asset-item id="aranha" src="models/aranha.glb"></a-asset-item>
+    </a-assets>
+
+    <!-- Chão provisório invisível -->
+    <a-plane
+      rotation="-90 0 0"
+      width="40"
+      height="40"
+      color="#333"
+      visible="false">
+    </a-plane>
+
+    <!-- Modelo principal -->
+    <a-entity
+      gltf-model="#caixa"
+      position="0 0 0"
+      scale="1 1 1"
+      forcar-material-flat="alphaTest: 0.5">
+    </a-entity>
+
+    <!-- Modelo da aranha -->
+    <a-entity
+      gltf-model="#aranha"
+      position="0 -0.5 0"
+      scale="1 1 1"
+      forcar-material-flat="alphaTest: 0.5">
+    </a-entity>
+
+    <!-- Rig: desktop + mobile -->
+    <a-entity
+      id="rig"
+      position="0 2 5"
+      mobile-joystick-controls="moveSpeed: 40; lookSpeed: 0.5; moveAcceleration: 40">
+
+      <a-entity
+        id="camera"
+        camera
+        look-controls="pointerLockEnabled: false; touchEnabled: false"
+        wasd-controls="acceleration: 120"
+        position="0 0 0">
+      </a-entity>
+    </a-entity>
+
+  </a-scene>
+
+  <!-- Joysticks mobile -->
+  <div id="mobile-controls">
+    <div class="joystick" id="leftJoy">
+      <div class="stick"></div>
+    </div>
+
+    <div class="joystick" id="rightJoy">
+      <div class="stick"></div>
+    </div>
+  </div>
+
+  <script>
+    function zerarJoysticks() {
+      joystickState.left.x = 0;
+      joystickState.left.y = 0;
+      joystickState.right.x = 0;
+      joystickState.right.y = 0;
+
+      document.querySelectorAll('.stick').forEach((stick) => {
+        stick.style.transform = 'translate(-50%, -50%)';
+      });
+    }
+
+    function setupJoystick(id, side) {
+      const joy = document.getElementById(id);
+      const stick = joy.querySelector('.stick');
+
+      const radius = 40;
+      let active = false;
+
+      function updateStick(clientX, clientY) {
+        const rect = joy.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+
+        let dx = clientX - cx;
+        let dy = clientY - cy;
+
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist > radius) {
+          dx = (dx / dist) * radius;
+          dy = (dy / dist) * radius;
+        }
+
+        stick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+        joystickState[side].x = dx / radius;
+        joystickState[side].y = dy / radius;
+      }
+
+      function resetStick() {
+        stick.style.transform = 'translate(-50%, -50%)';
+        joystickState[side].x = 0;
+        joystickState[side].y = 0;
+        active = false;
+      }
+
+      joy.addEventListener('pointerdown', (e) => {
+        active = true;
+        joy.setPointerCapture(e.pointerId);
+        updateStick(e.clientX, e.clientY);
+      });
+
+      joy.addEventListener('pointermove', (e) => {
+        if (!active) return;
+        updateStick(e.clientX, e.clientY);
+      });
+
+      joy.addEventListener('pointerup', resetStick);
+      joy.addEventListener('pointercancel', resetStick);
+
+      joy.addEventListener('pointerleave', () => {
+        if (active) resetStick();
+      });
+    }
+
+    setupJoystick('leftJoy', 'left');
+    setupJoystick('rightJoy', 'right');
+
+    window.addEventListener('pointerup', zerarJoysticks);
+    window.addEventListener('pointercancel', zerarJoysticks);
+    window.addEventListener('blur', zerarJoysticks);
+  </script>
+</body>
+</html>
