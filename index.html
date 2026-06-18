@@ -13,13 +13,6 @@
       filter: contrast(1) saturate(1);
     }
 
-    .a-enter-vr,
-    .a-enter-ar,
-    .a-orientation-modal,
-    .a-dialog {
-      display: none !important;
-    }
-
     #mobile-controls {
       position: fixed;
       inset: 0;
@@ -95,7 +88,9 @@
                 alphaMap: mat.alphaMap || null,
                 color: mat.color || new THREE.Color(1, 1, 1),
 
-                transparent: true,
+                // Só ativa transparência se opacity for menor que 1.
+                // Isso evita flicker por ordenação de transparência em materiais opacos.
+                transparent: this.data.opacity < 1,
                 opacity: this.data.opacity,
                 alphaTest: this.data.alphaTest,
 
@@ -103,6 +98,9 @@
                 depthTest: true,
                 depthWrite: true
               });
+
+              // Preserva o nome do material original para aparecer no console.
+              novo.name = mat.name || 'material_sem_nome';
 
               novo.needsUpdate = true;
               return novo;
@@ -113,6 +111,34 @@
             node.castShadow = false;
             node.receiveShadow = false;
           });
+        });
+      }
+    });
+
+    AFRAME.registerComponent('listar-materiais', {
+      init: function () {
+        this.el.addEventListener('model-loaded', () => {
+          const obj = this.el.getObject3D('mesh');
+          if (!obj) return;
+
+          console.log('--- LISTA DE MATERIAIS DO MODELO ---');
+
+          obj.traverse((node) => {
+            if (!node.isMesh || !node.material) return;
+
+            const materiais = Array.isArray(node.material) ? node.material : [node.material];
+
+            materiais.forEach((mat) => {
+              console.log(
+                'Objeto:',
+                node.name || 'mesh_sem_nome',
+                '| Material:',
+                mat.name || 'material_sem_nome'
+              );
+            });
+          });
+
+          console.log('--- FIM DA LISTA DE MATERIAIS ---');
         });
       }
     });
@@ -191,8 +217,7 @@
   <a-scene
     background="color: #111"
     renderer="antialias: true; colorManagement: true"
-    vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: false">
+    vr-mode-ui="enabled: false">
 
     <a-assets>
       <a-asset-item id="caixa" src="models/caixa.glb"></a-asset-item>
@@ -213,13 +238,14 @@
       gltf-model="#caixa"
       position="0 0 0"
       scale="1 1 1"
-      forcar-material-flat="alphaTest: 0.5">
+      forcar-material-flat="alphaTest: 0.5"
+      listar-materiais>
     </a-entity>
 
     <!-- Modelo da aranha -->
     <a-entity
       gltf-model="#aranha"
-      position="0 -0.5 0"
+      position="0 0 0"
       scale="1 1 1"
       forcar-material-flat="alphaTest: 0.5">
     </a-entity>
@@ -232,8 +258,8 @@
 
       <a-entity
         id="camera"
-        camera
-        look-controls="pointerLockEnabled: false; touchEnabled: false; magicWindowTrackingEnabled: false"
+        camera="near: 0.1; far: 300"
+        look-controls="pointerLockEnabled: false; touchEnabled: false"
         wasd-controls="acceleration: 120"
         position="0 0 0">
       </a-entity>
