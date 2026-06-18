@@ -217,7 +217,8 @@
   <a-scene
     background="color: #111"
     renderer="antialias: true; colorManagement: true"
-    vr-mode-ui="enabled: false">
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
 
     <a-assets>
       <a-asset-item id="caixa" src="models/caixa.glb"></a-asset-item>
@@ -259,7 +260,7 @@
       <a-entity
         id="camera"
         camera="near: 0.1; far: 300"
-        look-controls="pointerLockEnabled: false; touchEnabled: false"
+        look-controls="pointerLockEnabled: false; touchEnabled: false; magicWindowTrackingEnabled: false"
         wasd-controls="acceleration: 120"
         position="0 0 0">
       </a-entity>
