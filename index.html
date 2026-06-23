@@ -323,14 +323,14 @@ AFRAME.registerComponent('travar-na-navmesh', {
    <a-entity
   id="rig"
   position="0 2 5"
-  mobile-joystick-controls="moveSpeed: 40; lookSpeed: 0.5; moveAcceleration: 40"
+  mobile-joystick-controls="moveSpeed: 8; lookSpeed: 0.5; moveAcceleration: 15"
   travar-na-navmesh="navmesh: #navmesh; rayHeight: 10; rayDistance: 30">
 
       <a-entity
   id="camera"
   camera="near: 0.1; far: 300"
   look-controls="pointerLockEnabled: false; touchEnabled: false; magicWindowTrackingEnabled: false"
-  wasd-controls="acceleration: 120"
+  wasd-controls="acceleration: 50"
   travar-na-navmesh="navmesh: #navmesh; rayHeight: 10; rayDistance: 30"
   position="0 0 0">
       </a-entity>
