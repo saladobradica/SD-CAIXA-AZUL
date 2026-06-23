@@ -23,6 +23,20 @@
   pointer-events: none !important;
 }
 
+#brightness-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 16;
+
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(0,0,0,0) 35%,
+      rgba(0,0,0,0.25) 70%,
+      rgba(0,0,0,0.65) 100%
+    );
+}
     #mobile-controls {
       position: fixed;
       inset: 0;
@@ -358,7 +372,7 @@ AFRAME.registerComponent('travar-na-navmesh', {
       <div class="stick"></div>
     </div>
   </div>
-
+<div id="brightness-vignette"></div>
   <script>
     function zerarJoysticks() {
       joystickState.left.x = 0;
