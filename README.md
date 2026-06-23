@@ -1,4 +1,4 @@
-# Teste A-Frame Mobile
+# Sala Dobradiça Digital
 
 Projeto experimental em A-Frame com navegação por teclado no desktop e joysticks virtuais no mobile.
 
