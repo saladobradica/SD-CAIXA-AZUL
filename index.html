@@ -10,7 +10,7 @@
 
   <style>
     canvas.a-canvas {
-      filter: contrast(1) saturate(1);
+      filter: contrast(1.3) saturate(0.7) brightness(1);
     }
 
     #mobile-controls {
@@ -58,6 +58,8 @@
         display: none;
       }
     }
+
+    
   </style>
 
   <script>
@@ -142,7 +144,71 @@
         });
       }
     });
+AFRAME.registerComponent('navmesh-invisivel', {
+  init: function () {
+    this.el.addEventListener('model-loaded', () => {
+      const obj = this.el.getObject3D('mesh');
+      if (!obj) return;
 
+      obj.traverse((node) => {
+        if (!node.isMesh || !node.material) return;
+
+        const materiais = Array.isArray(node.material) ? node.material : [node.material];
+
+        materiais.forEach((mat) => {
+          mat.transparent = true;
+          mat.opacity = 0;
+          mat.depthWrite = false;
+          mat.colorWrite = false;
+          mat.needsUpdate = true;
+        });
+      });
+    });
+  }
+});
+
+AFRAME.registerComponent('travar-na-navmesh', {
+  schema: {
+    navmesh: { type: 'selector' },
+    rayHeight: { type: 'number', default: 10 },
+    rayDistance: { type: 'number', default: 30 }
+  },
+
+  init: function () {
+    this.raycaster = new THREE.Raycaster();
+    this.down = new THREE.Vector3(0, -1, 0);
+    this.worldPos = new THREE.Vector3();
+    this.rayOrigin = new THREE.Vector3();
+
+    this.lastValidPosition = this.el.object3D.position.clone();
+  },
+
+  tick: function () {
+    if (!this.data.navmesh) return;
+
+    const navObj = this.data.navmesh.getObject3D('mesh');
+    if (!navObj) return;
+
+    this.el.object3D.getWorldPosition(this.worldPos);
+
+    this.rayOrigin.set(
+      this.worldPos.x,
+      this.worldPos.y + this.data.rayHeight,
+      this.worldPos.z
+    );
+
+    this.raycaster.set(this.rayOrigin, this.down);
+    this.raycaster.far = this.data.rayDistance;
+
+    const hits = this.raycaster.intersectObject(navObj, true);
+
+    if (hits.length > 0) {
+      this.lastValidPosition.copy(this.el.object3D.position);
+    } else {
+      this.el.object3D.position.copy(this.lastValidPosition);
+    }
+  }
+});
     AFRAME.registerComponent('mobile-joystick-controls', {
       schema: {
         moveSpeed: { default: 40 },
@@ -214,25 +280,28 @@
 </head>
 
 <body>
-  <a-scene
-    background="color: #111"
-    renderer="antialias: true; colorManagement: true"
-    vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: false">
+<a-scene
+  background="color: blue"
+  renderer="antialias: true; colorManagement: true"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false"
+  fog="type: linear; color: blue; near: 150; far: 250">
 
-    <a-assets>
-      <a-asset-item id="caixa" src="models/caixa.glb"></a-asset-item>
-      <a-asset-item id="aranha" src="models/aranha.glb"></a-asset-item>
-    </a-assets>
+<a-assets>
+  <a-asset-item id="caixa" src="models/caixa.glb"></a-asset-item>
+  <a-asset-item id="aranha" src="models/aranha.glb"></a-asset-item>
+  <a-asset-item id="passarela" src="models/passarela.glb"></a-asset-item>
+</a-assets>
 
-    <!-- Chão provisório invisível -->
-    <a-plane
-      rotation="-90 0 0"
-      width="40"
-      height="40"
-      color="#333"
-      visible="false">
-    </a-plane>
+<!-- Navmesh / passarela invisível -->
+<a-entity
+  id="navmesh"
+  gltf-model="#passarela"
+  position="0 0 0"
+  scale="1 1 1"
+  visible="true"
+  navmesh-invisivel>
+</a-entity>
 
     <!-- Modelo principal -->
     <a-entity
@@ -251,18 +320,19 @@
       forcar-material-flat="alphaTest: 0.5">
     </a-entity>
 
-    <!-- Rig: desktop + mobile -->
-    <a-entity
-      id="rig"
-      position="0 2 5"
-      mobile-joystick-controls="moveSpeed: 40; lookSpeed: 0.5; moveAcceleration: 40">
+   <a-entity
+  id="rig"
+  position="0 2 5"
+  mobile-joystick-controls="moveSpeed: 40; lookSpeed: 0.5; moveAcceleration: 40"
+  travar-na-navmesh="navmesh: #navmesh; rayHeight: 10; rayDistance: 30">
 
       <a-entity
-        id="camera"
-        camera="near: 0.1; far: 300"
-        look-controls="pointerLockEnabled: false; touchEnabled: false; magicWindowTrackingEnabled: false"
-        wasd-controls="acceleration: 120"
-        position="0 0 0">
+  id="camera"
+  camera="near: 0.1; far: 300"
+  look-controls="pointerLockEnabled: false; touchEnabled: false; magicWindowTrackingEnabled: false"
+  wasd-controls="acceleration: 120"
+  travar-na-navmesh="navmesh: #navmesh; rayHeight: 10; rayDistance: 30"
+  position="0 0 0">
       </a-entity>
     </a-entity>
 
