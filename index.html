@@ -10,7 +10,7 @@
 
   <style>
     canvas.a-canvas {
-      filter: contrast(1.3) saturate(0.7) brightness(1);
+      filter: contrast(1) saturate(1) brightness(1);
     }
 
     .a-enter-vr,
@@ -309,11 +309,11 @@ AFRAME.registerComponent('travar-na-navmesh', {
   renderer="antialias: true; colorManagement: true"
   vr-mode-ui="enabled: false"
   device-orientation-permission-ui="enabled: false"
-  fog="type: linear; color: blue; near: 150; far: 250">
+  fog="type: linear; color: blue; near: 10; far: 350">
 
 <a-assets>
   <a-asset-item id="caixa" src="models/caixa.glb"></a-asset-item>
-  <a-asset-item id="aranha" src="models/aranha.glb"></a-asset-item>
+      <a-asset-item id="aranha" src="models/aranha.glb"></a-asset-item>
   <a-asset-item id="passarela" src="models/passarela.glb"></a-asset-item>
 </a-assets>
 
@@ -341,7 +341,7 @@ AFRAME.registerComponent('travar-na-navmesh', {
       gltf-model="#aranha"
       position="0 0 0"
       scale="1 1 1"
-      forcar-material-flat="alphaTest: 0.5">
+      forcar-material-flat="alphaTest: 0.2">
     </a-entity>
 
    <a-entity
