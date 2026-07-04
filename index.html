@@ -312,8 +312,8 @@ AFRAME.registerComponent('travar-na-navmesh', {
   fog="type: linear; color: blue; near: 10; far: 350">
 
 <a-assets>
-  <a-asset-item id="caixa" src="models/caixa.glb"></a-asset-item>
-      <a-asset-item id="aranha" src="models/aranha.glb"></a-asset-item>
+  <a-asset-item id="caixa" src="models/caixa azul.glb"></a-asset-item>
+      <a-asset-item id="transp" src="models/transp azul.glb"></a-asset-item>
   <a-asset-item id="passarela" src="models/passarela.glb"></a-asset-item>
 </a-assets>
 
@@ -338,9 +338,10 @@ AFRAME.registerComponent('travar-na-navmesh', {
 
     <!-- Modelo da aranha -->
     <a-entity
-      gltf-model="#aranha"
+      gltf-model="#transp"
       position="0 0 0"
       scale="1 1 1"
+      forcar-material-flat="alphaTest: 0.15">
     </a-entity>
 
    <a-entity
