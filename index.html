@@ -676,11 +676,17 @@ VARIÁVEIS POR AMBIENTE:
         this.caixa = new THREE.Box3();
         this.alvoPos = new THREE.Vector3();
         this.modeloCarregado = false;
+        this.aguardandoSoltar = false;
 
         this.el.addEventListener('model-loaded', () => {
           this.modeloCarregado = true;
           this.atualizarCaixa();
-          console.log('Portal carregado:', this.el.id, this.data.url);
+
+          console.log(
+            'Portal carregado:',
+            this.el.id,
+            this.data.url
+          );
         });
       },
 
@@ -688,21 +694,85 @@ VARIÁVEIS POR AMBIENTE:
         this.caixa.setFromObject(this.el.object3D);
       },
 
+      navegar: function () {
+        if (this.ativado) return;
+
+        this.ativado = true;
+
+        if (typeof zerarJoysticks === 'function') {
+          zerarJoysticks();
+        }
+
+        console.log(
+          'Portal ativado:',
+          this.el.id,
+          this.data.url
+        );
+
+        window.location.assign(this.data.url);
+      },
+
+      aguardarJoystickSerSolto: function () {
+        if (this.aguardandoSoltar) return;
+
+        this.aguardandoSoltar = true;
+
+        const soltarENavegar = () => {
+          window.removeEventListener(
+            'pointerup',
+            soltarENavegar,
+            true
+          );
+
+          window.removeEventListener(
+            'pointercancel',
+            soltarENavegar,
+            true
+          );
+
+          this.navegar();
+        };
+
+        window.addEventListener(
+          'pointerup',
+          soltarENavegar,
+          true
+        );
+
+        window.addEventListener(
+          'pointercancel',
+          soltarENavegar,
+          true
+        );
+      },
+
       tick: function () {
         if (this.ativado) return;
+        if (this.aguardandoSoltar) return;
         if (!this.modeloCarregado) return;
         if (!this.data.alvo) return;
 
         this.atualizarCaixa();
 
-        this.data.alvo.object3D.getWorldPosition(this.alvoPos);
+        this.data.alvo.object3D.getWorldPosition(
+          this.alvoPos
+        );
 
-        const distanciaAtePortal = this.caixa.distanceToPoint(this.alvoPos);
+        const distanciaAtePortal =
+          this.caixa.distanceToPoint(this.alvoPos);
 
         if (distanciaAtePortal <= this.data.distancia) {
-          this.ativado = true;
-          console.log('Portal ativado:', this.el.id, this.data.url);
-          window.location.href = this.data.url;
+          const joystickEmUso =
+            Math.abs(joystickState.left.x) > 0.01 ||
+            Math.abs(joystickState.left.y) > 0.01 ||
+            Math.abs(joystickState.right.x) > 0.01 ||
+            Math.abs(joystickState.right.y) > 0.01;
+
+          if (joystickEmUso) {
+            this.aguardarJoystickSerSolto();
+          } else {
+            this.navegar();
+          }
         }
       }
     });
