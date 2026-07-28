@@ -676,7 +676,6 @@ VARIÁVEIS POR AMBIENTE:
         this.caixa = new THREE.Box3();
         this.alvoPos = new THREE.Vector3();
         this.modeloCarregado = false;
-        this.aguardandoSoltar = false;
 
         this.el.addEventListener('model-loaded', () => {
           this.modeloCarregado = true;
@@ -699,7 +698,9 @@ VARIÁVEIS POR AMBIENTE:
 
         this.ativado = true;
 
-        if (typeof zerarJoysticks === 'function') {
+        if (typeof prepararNavegacaoEntrePaginas === 'function') {
+          prepararNavegacaoEntrePaginas();
+        } else if (typeof zerarJoysticks === 'function') {
           zerarJoysticks();
         }
 
@@ -709,46 +710,15 @@ VARIÁVEIS POR AMBIENTE:
           this.data.url
         );
 
-        window.location.assign(this.data.url);
-      },
-
-      aguardarJoystickSerSolto: function () {
-        if (this.aguardandoSoltar) return;
-
-        this.aguardandoSoltar = true;
-
-        const soltarENavegar = () => {
-          window.removeEventListener(
-            'pointerup',
-            soltarENavegar,
-            true
-          );
-
-          window.removeEventListener(
-            'pointercancel',
-            soltarENavegar,
-            true
-          );
-
-          this.navegar();
-        };
-
-        window.addEventListener(
-          'pointerup',
-          soltarENavegar,
-          true
-        );
-
-        window.addEventListener(
-          'pointercancel',
-          soltarENavegar,
-          true
-        );
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            window.location.replace(this.data.url);
+          });
+        });
       },
 
       tick: function () {
         if (this.ativado) return;
-        if (this.aguardandoSoltar) return;
         if (!this.modeloCarregado) return;
         if (!this.data.alvo) return;
 
@@ -762,17 +732,7 @@ VARIÁVEIS POR AMBIENTE:
           this.caixa.distanceToPoint(this.alvoPos);
 
         if (distanciaAtePortal <= this.data.distancia) {
-          const joystickEmUso =
-            Math.abs(joystickState.left.x) > 0.01 ||
-            Math.abs(joystickState.left.y) > 0.01 ||
-            Math.abs(joystickState.right.x) > 0.01 ||
-            Math.abs(joystickState.right.y) > 0.01;
-
-          if (joystickEmUso) {
-            this.aguardarJoystickSerSolto();
-          } else {
-            this.navegar();
-          }
+          this.navegar();
         }
       }
     });
@@ -970,15 +930,60 @@ VARIÁVEIS POR AMBIENTE:
   </div>
 
   <script>
-    function zerarJoysticks() {
-      joystickState.left.x = 0;
-      joystickState.left.y = 0;
-      joystickState.right.x = 0;
-      joystickState.right.y = 0;
+    const joystickPointers = {
+      left: null,
+      right: null
+    };
 
-      document.querySelectorAll('.stick').forEach((stick) => {
+    function resetarJoystickVisual(side) {
+      const joy = document.getElementById(side === 'left' ? 'leftJoy' : 'rightJoy');
+      if (!joy) return;
+
+      const stick = joy.querySelector('.stick');
+
+      if (stick) {
         stick.style.transform = 'translate(-50%, -50%)';
-      });
+      }
+
+      joystickState[side].x = 0;
+      joystickState[side].y = 0;
+      joystickPointers[side] = null;
+    }
+
+    function liberarCapturaDoJoystick(side) {
+      const joy = document.getElementById(side === 'left' ? 'leftJoy' : 'rightJoy');
+      const pointerId = joystickPointers[side];
+
+      if (!joy || pointerId === null) return;
+
+      try {
+        if (joy.hasPointerCapture && joy.hasPointerCapture(pointerId)) {
+          joy.releasePointerCapture(pointerId);
+        }
+      } catch (erro) {
+        console.warn('Não foi possível liberar a captura do joystick:', erro);
+      }
+    }
+
+    function liberarCapturasDosJoysticks() {
+      liberarCapturaDoJoystick('left');
+      liberarCapturaDoJoystick('right');
+    }
+
+    function zerarJoysticks() {
+      liberarCapturasDosJoysticks();
+      resetarJoystickVisual('left');
+      resetarJoystickVisual('right');
+    }
+
+    function prepararNavegacaoEntrePaginas() {
+      zerarJoysticks();
+
+      const controles = document.getElementById('mobile-controls');
+
+      if (controles) {
+        controles.style.pointerEvents = 'none';
+      }
     }
 
     function setupJoystick(id, side) {
@@ -986,8 +991,6 @@ VARIÁVEIS POR AMBIENTE:
       const stick = joy.querySelector('.stick');
 
       const radius = 40;
-      let active = false;
-      let activePointerId = null;
 
       function updateStick(clientX, clientY) {
         const rect = joy.getBoundingClientRect();
@@ -1012,29 +1015,28 @@ VARIÁVEIS POR AMBIENTE:
       }
 
       function resetStick(event) {
+        const pointerId = joystickPointers[side];
+
         if (
           event &&
-          activePointerId !== null &&
+          pointerId !== null &&
           typeof event.pointerId === 'number' &&
-          event.pointerId !== activePointerId
+          event.pointerId !== pointerId
         ) {
           return;
         }
 
-        stick.style.transform = 'translate(-50%, -50%)';
-        joystickState[side].x = 0;
-        joystickState[side].y = 0;
-
-        active = false;
-        activePointerId = null;
+        liberarCapturaDoJoystick(side);
+        resetarJoystickVisual(side);
       }
 
       joy.addEventListener('pointerdown', (event) => {
         event.preventDefault();
         event.stopPropagation();
 
-        active = true;
-        activePointerId = event.pointerId;
+        if (joystickPointers[side] !== null) return;
+
+        joystickPointers[side] = event.pointerId;
 
         try {
           joy.setPointerCapture(event.pointerId);
@@ -1046,7 +1048,7 @@ VARIÁVEIS POR AMBIENTE:
       });
 
       joy.addEventListener('pointermove', (event) => {
-        if (!active || event.pointerId !== activePointerId) return;
+        if (event.pointerId !== joystickPointers[side]) return;
 
         event.preventDefault();
         event.stopPropagation();
@@ -1066,8 +1068,18 @@ VARIÁVEIS POR AMBIENTE:
     setupJoystick('leftJoy', 'left');
     setupJoystick('rightJoy', 'right');
 
-    window.addEventListener('pointerup', zerarJoysticks);
-    window.addEventListener('pointercancel', zerarJoysticks);
+    window.addEventListener('pageshow', () => {
+      const controles = document.getElementById('mobile-controls');
+
+      zerarJoysticks();
+
+      if (controles) {
+        controles.style.pointerEvents = '';
+      }
+    });
+
+    window.addEventListener('pagehide', zerarJoysticks);
+    window.addEventListener('beforeunload', zerarJoysticks);
     window.addEventListener('blur', zerarJoysticks);
     window.addEventListener('resize', zerarJoysticks);
     window.addEventListener('orientationchange', zerarJoysticks);
